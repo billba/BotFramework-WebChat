@@ -99,6 +99,7 @@ export interface IActivity {
     eTag?: string,
     from?: User,
     id?: string,
+    clientActivityId?: string,
     timestamp?: string
 }
 

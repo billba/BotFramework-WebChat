@@ -20,6 +20,11 @@ export class DirectLine3 implements IBotConnection {
     private tokenRefreshSubscription: Subscription;
     private getActivityGroupSubscription: Subscription;
     private pollTimer: number;
+    private clientActivityId = 0;
+
+    private newClientActivityId() {
+        return `${Date.now()}-${Math.random().toString()}-${this.clientActivityId++}`
+    }
 
     constructor(
         secretOrToken: SecretOrToken,
@@ -94,6 +99,7 @@ export class DirectLine3 implements IBotConnection {
                 text,
                 from,
                 conversationId: this.conversationId,
+                clientActivityId: this.newClientActivityId(),
                 channelData
             },
             timeout,

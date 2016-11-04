@@ -8,9 +8,13 @@ var DirectLine3 = (function () {
         this.domain = domain;
         this.segment = segment;
         this.connected$ = new rxjs_1.BehaviorSubject(false);
+        this.clientActivityId = 0;
         this.secret = secretOrToken.secret;
         this.token = secretOrToken.secret || secretOrToken.token;
     }
+    DirectLine3.prototype.newClientActivityId = function () {
+        return Date.now() + "-" + Math.random().toString() + "-" + this.clientActivityId++;
+    };
     DirectLine3.prototype.start = function () {
         var _this = this;
         rxjs_1.Observable.ajax({
@@ -72,6 +76,7 @@ var DirectLine3 = (function () {
                 text: text,
                 from: from,
                 conversationId: this.conversationId,
+                clientActivityId: this.newClientActivityId(),
                 channelData: channelData
             },
             timeout: timeout,
