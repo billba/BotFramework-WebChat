@@ -20,6 +20,9 @@ export type FormatAction = {
     strings: Strings
 }
 
+export const doSetFormatOptions = (options: FormatOptions) => ({ type: 'Set_Format_Options', options } as FormatAction);
+export const doSetLocalizedStrings = (strings: Strings) => ({ type: 'Set_Localized_Strings', strings } as FormatAction);
+
 export const format: Reducer<FormatState> = (
     state: FormatState = {
         options: {
@@ -60,6 +63,15 @@ export type ConnectionAction = {
     type: 'Connection_Change',
     connectionStatus: ConnectionStatus
 }
+
+export const doStartConnection = (
+    botConnection: IBotConnection,
+    user: User,
+    bot: User,
+    selectedActivity: BehaviorSubject<ActivityOrID>
+) => ({ type: 'Start_Connection', botConnection, user, bot, selectedActivity } as ConnectionAction);
+
+export const doConnectionChange = (connectionStatus: ConnectionStatus) => ({ type: 'Connection_Change', connectionStatus } as ConnectionAction);
 
 export const connection: Reducer<ConnectionState> = (
     state: ConnectionState = {
@@ -118,6 +130,18 @@ export type HistoryAction = {
     type: 'Clear_Typing',
     id: string
 }
+
+export const doUpdateInput = (input: string) => ({ type: 'Update_Input', input } as HistoryAction);
+export const doReceiveMessage = (activity: Activity) => ({ type: 'Receive_Message', activity } as HistoryAction);
+export const doSendMessage = (activity: Activity) => ({ type: 'Send_Message', activity } as HistoryAction);
+export const doShowTyping = (activity: Activity) => ({ type: 'Show_Typing', activity } as HistoryAction);
+export const doReceiveSentMessage = (activity: Activity) => ({ type: 'Receive_Sent_Message', activity } as HistoryAction);
+export const doSendMessageTry = (clientActivityId: string) => ({ type: 'Send_Message_Try', clientActivityId } as HistoryAction);
+export const doSendMessageFail = (clientActivityId: string) => ({ type: 'Send_Message_Fail', clientActivityId } as HistoryAction);
+export const doSendMessageRetry = (clientActivityId: string) => ({ type: 'Send_Message_Retry', clientActivityId } as HistoryAction);
+export const doSendMessageSucceed = (clientActivityId: string, id: string) => ({ type: 'Send_Message_Succeed', clientActivityId, id } as HistoryAction);
+export const doSelectActivity = (selectedActivity: Activity) => ({ type: 'Select_Activity', selectedActivity } as HistoryAction);
+export const doClearTyping = (id: String) => ({ type: 'Clear_Typing', id } as HistoryAction);
 
 export const history: Reducer<HistoryState> = (
     state: HistoryState = {
@@ -273,8 +297,7 @@ const sendMessage: Epic<HistoryAction> = (action$, store: MiddlewareAPI<ChatStat
     action$.ofType('Send_Message')
     .map(action => {
         const state = store.getState();
-        const clientActivityId = state.history.clientActivityBase + (state.history.clientActivityCounter - 1);
-        return ({ type: 'Send_Message_Try', clientActivityId } as HistoryAction);
+        return doSendMessageTry(state.history.clientActivityBase + (state.history.clientActivityCounter - 1));
     });
 
 const trySendMessage: Epic<HistoryAction> = (action$, store: MiddlewareAPI<ChatState>) =>
@@ -289,22 +312,21 @@ const trySendMessage: Epic<HistoryAction> = (action$, store: MiddlewareAPI<ChatS
         }
 
         return state.connection.botConnection.postActivity(activity)
-        .map(id => ({ type: 'Send_Message_Succeed', clientActivityId, id } as HistoryAction))
+        .map(id => doSendMessageSucceed(clientActivityId, id))
         .catch(error => Observable.of({ type: 'Send_Message_Fail', clientActivityId } as HistoryAction))
     });
 
 const retrySendMessage: Epic<HistoryAction> = (action$) =>
     action$.ofType('Send_Message_Retry')
-    .map(action => ({ type: 'Send_Message_Try', clientActivityId: action.clientActivityId } as HistoryAction));
+    .map(action => doSendMessageTry(action.clientActivityId));
 
 const updateSelectedActivity: Epic<HistoryAction> = (action$, store: MiddlewareAPI<ChatState>) =>
-    action$.filter(action => [
+    action$.ofType(
         'Send_Message_Succeed',
         'Send_Message_Fail',
         'Send_Message_Fail',
         'Show_Typing',
         'Clear_Typing'
-        ].includes(action.type)
     )
     .map(action => {
         const state = store.getState();
@@ -316,7 +338,7 @@ const updateSelectedActivity: Epic<HistoryAction> = (action$, store: MiddlewareA
 const showTyping: Epic<HistoryAction> = (action$) =>
     action$.ofType('Show_Typing')
     .delay(3000)
-    .map(action => ({ type: 'Clear_Typing', id: action.activity.id } as HistoryAction));
+    .map(action => doClearTyping(action.activity.id));
 
 // Now we put it all together into a store with middleware
 

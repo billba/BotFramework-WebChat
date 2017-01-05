@@ -5,10 +5,11 @@ import { DirectLine } from './directLine';
 //import { BrowserLine } from './browserLine';
 import { History } from './History';
 import { Shell } from './Shell';
-import { createStore, FormatAction, HistoryAction, ConnectionAction, ChatStore } from './Store';
+import { createStore, FormatAction, HistoryAction, ConnectionAction, ChatStore, doSetFormatOptions, doSetLocalizedStrings, doShowTyping, doStartConnection, doConnectionChange, doReceiveMessage, doReceiveSentMessage, doSelectActivity } from './Store';
 import { strings } from './Strings';
 import { Dispatch } from 'redux';
 import { Provider } from 'react-redux';
+import { doSendMessage } from './Store';
 
 export interface FormatOptions {
     showHeader?: boolean
@@ -42,9 +43,9 @@ export class Chat extends React.Component<ChatProps, {}> {
         konsole.log("BotChat.Chat props", props);
 
         if (props.formatOptions)
-            this.store.dispatch<FormatAction>({ type: 'Set_Format_Options', options: props.formatOptions });
+            this.store.dispatch(doSetFormatOptions(props.formatOptions));
 
-        this.store.dispatch<FormatAction>({ type: 'Set_Localized_Strings', strings: strings(props.locale || window.navigator.language) });
+        this.store.dispatch(doSetLocalizedStrings(strings(props.locale || window.navigator.language)));
     }
 
     private handleIncomingActivity(activity: Activity) {
@@ -52,11 +53,11 @@ export class Chat extends React.Component<ChatProps, {}> {
         switch (activity.type) {
 
             case "message":
-                this.store.dispatch<HistoryAction>({ type: activity.from.id === state.connection.user.id ? 'Receive_Sent_Message' : 'Receive_Message', activity });
+                this.store.dispatch(activity.from.id === state.connection.user.id ? doReceiveSentMessage(activity) : doReceiveMessage(activity));
                 break;
 
             case "typing":
-                this.store.dispatch<HistoryAction>({ type: 'Show_Typing', activity });
+                this.store.dispatch(doShowTyping(activity));
                 break;
         }
     }
@@ -64,10 +65,10 @@ export class Chat extends React.Component<ChatProps, {}> {
     componentDidMount() {
         let props = this.props;
 
-        this.store.dispatch<ConnectionAction>({ type: 'Start_Connection', user: props.user, bot: props.bot, botConnection: props.botConnection, selectedActivity: props.selectedActivity });
+        this.store.dispatch(doStartConnection(props.botConnection, props.user, props.bot, props.selectedActivity));
 
         this.connectionStatusSubscription = props.botConnection.connectionStatus$.subscribe(connectionStatus =>
-            this.store.dispatch<ConnectionAction>({ type: 'Connection_Change', connectionStatus })
+            this.store.dispatch(doConnectionChange(connectionStatus))
         );
 
         this.activitySubscription = props.botConnection.activity$.subscribe(
@@ -75,14 +76,10 @@ export class Chat extends React.Component<ChatProps, {}> {
             error => konsole.log("activity$ error", error)
         );
 
-        if (props.selectedActivity) {
-            this.selectedActivitySubscription = props.selectedActivity.subscribe(activityOrID => {
-                this.store.dispatch<HistoryAction>({
-                    type: 'Select_Activity',
-                    selectedActivity: activityOrID.activity || this.store.getState().history.activities.find(activity => activity.id === activityOrID.id)
-                });
-            });
-        }
+        if (props.selectedActivity)
+            this.selectedActivitySubscription = props.selectedActivity.subscribe(activityOrID => this.store.dispatch(doSelectActivity(
+                activityOrID.activity || this.store.getState().history.activities.find(activity => activity.id === activityOrID.id)
+            )));
     }
 
     componentWillUnmount() {
@@ -117,12 +114,12 @@ export class Chat extends React.Component<ChatProps, {}> {
 export const sendMessage = (dispatch: Dispatch<HistoryAction>, text: string, from: User) => {
     if (!text || typeof text !== 'string' || text.trim().length === 0)
         return;
-    dispatch({ type: 'Send_Message', activity: {
+    dispatch(doSendMessage({
         type: "message",
         text,
         from,
         timestamp: (new Date()).toISOString()
-    }});
+    }));
 }
 
 export const sendPostBack = (botConnection: IBotConnection, text: string, from: User) => {
@@ -152,11 +149,11 @@ const attachmentsFromFiles = (files: FileList) => {
 }
 
 export const sendFiles = (dispatch: Dispatch<HistoryAction>, files: FileList, from: User) => {
-    dispatch({ type: 'Send_Message', activity: {
+    dispatch(doSendMessage({
         type: "message",
         attachments: attachmentsFromFiles(files),
         from
-    }});
+    }));
 }
 
 export const renderIfNonempty = (value: any, renderer: (value: any) => JSX.Element ) => {

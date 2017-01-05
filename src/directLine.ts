@@ -166,6 +166,7 @@ export class DirectLine implements IBotConnection {
     end() {
         if (this.tokenRefreshSubscription)
             this.tokenRefreshSubscription.unsubscribe();
+        this.connectionStatus$.next(ConnectionStatus.Ended);
     }
 
     postActivity(activity: Activity) {
@@ -300,6 +301,7 @@ export class DirectLine implements IBotConnection {
             // but it's simpler just to always fetch a new one.
             .retryWhen(error$ => error$.mergeMap(error => this.reconnectToConversation()))
         )
+        .do(ajaxResponse => konsole.log("getActivityGroup ajaxResponse", ajaxResponse))        
         .flatMap(activityGroup => this.observableFromActivityGroup(activityGroup))
     }
 
