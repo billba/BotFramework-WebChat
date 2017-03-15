@@ -25,10 +25,11 @@ export interface ChatProps {
     botConnection?: IBotConnection,
     directLine?: DirectLineOptions,
     locale?: string,
+    messageTextFormat?: 'plain' | 'markdown' | 'xml'
     selectedActivity?: BehaviorSubject<ActivityOrID>,
     sendTyping?: boolean,
     formatOptions?: FormatOptions,
-    resize?: 'none' | 'window' | 'detect'
+    resize?: 'none' | 'window' | 'detect',
 }
 
 export class Chat extends React.Component<ChatProps, {}> {
@@ -56,6 +57,9 @@ export class Chat extends React.Component<ChatProps, {}> {
 
         if (props.formatOptions)
             this.store.dispatch<FormatAction>({ type: 'Set_Format_Options', options: props.formatOptions });
+        
+        if (props.messageTextFormat)
+            this.store.dispatch<FormatAction>({ type: 'Set_Message_Text_Format', messageTextFormat: props.messageTextFormat })
         
         if (props.sendTyping)
             this.store.dispatch<ShellAction>({ type: 'Set_Send_Typing', sendTyping: props.sendTyping });        
@@ -160,7 +164,7 @@ export class Chat extends React.Component<ChatProps, {}> {
     }
 }
 
-export const sendMessage = (dispatch: Dispatch<HistoryAction>, text: string, from: User, locale: string) => {
+export const sendMessage = (dispatch: Dispatch<HistoryAction>, text: string, from: User, locale: string, textFormat: string) => {
     if (!text || typeof text !== 'string' || text.trim().length === 0)
         return;
     dispatch({ type: 'Send_Message', activity: {
@@ -168,7 +172,8 @@ export const sendMessage = (dispatch: Dispatch<HistoryAction>, text: string, fro
         text,
         from,
         locale,
-        timestamp: (new Date()).toISOString()
+        textFormat,
+        timestamp: (new Date()).toISOString(),
     }});
 }
 
